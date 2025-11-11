@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type Storage struct {
@@ -42,19 +43,16 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := "INSERT INTO users (email, pass_hash) VALUES ($1, $2)"
+	query := "INSERT INTO users (email, pass_hash) VALUES ($1, $2) RETURNING id"
 
-	res, err := s.db.ExecContext(ctx, query, email, passHash)
+	var id int64
+
+	err := s.db.QueryRowContext(ctx, query, email, passHash).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
 		}
-		return 0, fmt.Errorf("%s: %w", op, err)
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -68,9 +66,9 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := "SELECT * FROM users WHERE email = $1"
+	query := "SELECT id, email, pass_hash FROM users WHERE email = $1"
 
-	user := models.User{}
+	var user models.User
 
 	err := s.db.QueryRowContext(ctx, query, email).Scan(&user.ID, &user.Email, &user.PassHash)
 	if err != nil {
@@ -104,4 +102,26 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	}
 
 	return isAdmin, nil
+}
+
+func (s *Storage) App(ctx context.Context, appID int) (models.App, error) {
+	const op = "storage.App"
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	query := "SELECT id, name, secret FROM apps WHERE id = $1"
+
+	var app models.App
+
+	err := s.db.QueryRowContext(ctx, query, appID).Scan(&app.ID, &app.Name, &app.Secret)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return app, fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
+		}
+
+		return app, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return app, nil
 }
