@@ -1,10 +1,18 @@
-# task migrate-up CONFIG_PATH=./config/local.yaml
 version: "3"
 
 tasks:
+  # task migrate-up CONFIG_PATH=./config/local.yaml
   migrate-up:
     aliases:
       - up
     desc: "Apply all up migrations"
     cmds:
       - goose -dir "./migrations" postgres "$(yq eval '.storage.dsn' {{.CONFIG_PATH}})" up
+  # task migrate-up CONFIG_PATH=./config/local_tests.yaml
+  # TODO: refactor so tests won't write data to table with real data
+  migrate-up-tests:
+    aliases:
+      - up-tests
+    desc: "Apply all up test migrations"
+    cmds:
+      - goose -dir "./tests/migrations" postgres "$(yq eval '.storage.dsn' {{.CONFIG_PATH}})" up

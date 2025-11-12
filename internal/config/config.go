@@ -30,6 +30,10 @@ func MustLoadConfig() *Config {
 		panic("CONFIG_PATH environment variable not set")
 	}
 
+	return MustLoadConfigByPath(configPath)
+}
+
+func MustLoadConfigByPath(configPath string) *Config {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		panic("Config file does not exist:" + configPath)
 	}
