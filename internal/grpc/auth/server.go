@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sso/internal/lib/validation"
 	"sso/internal/services/auth"
-	"sso/internal/storage"
 
 	ssov1 "github.com/whitxowl/contracts/gen/go/sso"
 	"google.golang.org/grpc"
@@ -76,7 +75,7 @@ func (s *ServerAPI) Register(
 
 	userId, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		if errors.Is(err, storage.ErrUserExists) {
+		if errors.Is(err, auth.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}
 
@@ -98,7 +97,7 @@ func (s *ServerAPI) IsAdmin(
 
 	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
-		if errors.Is(err, storage.ErrUserNotFound) {
+		if errors.Is(err, auth.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
 
